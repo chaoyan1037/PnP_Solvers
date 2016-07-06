@@ -107,6 +107,11 @@ public:
     const std::vector<Vector2d> &points2D,
     const std::vector<Vector3d> &points3D,
     PnPResult &result ) const;
+
+  void ComputePoseP6P(
+    const std::vector<Vector2d> &points2D,
+    const std::vector<Vector3d> &points3D,
+    PnPResult &result) const;
 };
 
 }

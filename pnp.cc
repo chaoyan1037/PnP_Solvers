@@ -89,7 +89,7 @@ void PnPSolver::ComputePose(
     ptr_pnp->ComputePoseEpnp( points2D, points3D, result );
   }
   else if ( P6P == pnp_method && nullptr != ptr_pnp ){
-
+    ptr_pnp->ComputePoseP6P( points2D, points3D, result );
   }
   else{ 
     std::cerr << "unknown pnp method or nullptr. pnp.cc line80" << std::endl;
@@ -293,6 +293,143 @@ void PnP::ComputePoseEpnp(
     else break;
   }
 
+}
+
+void PnP::ComputePoseP6P(
+  const std::vector<Vector2d> &points2D, 
+  const std::vector<Vector3d> &points3D, 
+  PnPResult &result)const
+{/*
+  int  num_correspondences = static_cast<int>( points2D.size() );
+  if ( num_correspondences <= 0 ) return;
+
+  std::mt19937 rand_num_gen;
+  if ( pnp_params_.ransac_parameters_.random_seed >= 0 ) {
+    rand_num_gen.seed( pnp_params_.ransac_parameters_.random_seed );
+  }
+
+  std::uniform_int_distribution<int> uniform_distribution_matches(
+    0, num_correspondences - 1 );
+
+  p6p p6p_solver;
+
+  //const double uc, const double vc, const double fu, const double fv
+  epnp_solver.set_internal_parameters( K( 0, 2 ), K( 1, 2 ), K( 0, 0 ), K( 1, 1 ) );
+  epnp_solver.set_maximum_number_of_correspondences( num_correspondences );
+
+  result.num_inliers_ = 0;
+  double epsilon_best = pnp_params_.ransac_parameters_.min_inlier_ratio;
+  double R_est[3][3], T_est[3];
+
+  int num_samples = pnp_params_.ransac_parameters_.minimal_sample_number;
+  if ( pnp_params_.ransac_parameters_.use_T_1_1_test ){
+    num_samples += 1;
+  }
+
+  // inlier mask
+  std::vector<bool> vec_inliers( num_correspondences, false );
+  uint64_t max_iters = pnp_params_.ransac_parameters_.max_ransac_iterations;
+  std::vector<Vector2d> sample_points_2D( 5 );
+  std::vector<Vector3d> sample_points_3D( 5 );
+  Eigen::Matrix3d rotation_matrices;
+  Eigen::Vector3d translation;
+  CameraPose temp_pose;
+  uint64_t t = 0;
+
+  for ( t = 0; t < max_iters; ++t )
+  {
+    epnp_solver.reset_correspondences();
+    // Randomly select five 2D-3D matches.
+    int rand_num = 0;
+    for ( int i = 0; i < 5; ++i ) {
+      rand_num = uniform_distribution_matches( rand_num_gen );
+      sample_points_2D[i] = points2D[rand_num];
+      sample_points_3D[i] = points3D[rand_num];
+      epnp_solver.add_correspondence(
+        points3D[rand_num][0],
+        points3D[rand_num][1],
+        points3D[rand_num][2],
+        points2D[rand_num][0],
+        points2D[rand_num][1] );
+    }
+
+    epnp_solver.compute_pose( R_est, T_est );
+
+    for ( int i = 0; i < 3; i++ ){
+      for ( int j = 0; j < 3; j++ ){
+        rotation_matrices( i, j ) = R_est[i][j];
+      }
+      translation[i] = T_est[i];
+    }
+
+    temp_pose.InitializePose( rotation_matrices, translation, K );
+
+    // If the candidate solution passes the T{1,1} test then evaluate all
+    // correspondences and update the best pose.
+    rand_num = uniform_distribution_matches( rand_num_gen );
+    if ( !pnp_params_.ransac_parameters_.use_T_1_1_test ||
+      PassesT11Test( points2D[rand_num], points3D[rand_num], temp_pose ) )
+    {
+      // Evaluates the poses.
+      const int num_inliers = EvaluatePose( points2D, points3D, temp_pose, vec_inliers );
+
+      // Update best model
+      if ( num_inliers > result.num_inliers_ ){
+        result.pose_.InitializePose( temp_pose );
+        result.num_inliers_ = num_inliers;
+        result.sample_points_2D_ = sample_points_2D;
+        result.sample_points_3D_ = sample_points_3D;
+
+        double inlier_ratio = static_cast<double>( result.num_inliers_ ) /
+          static_cast<double>( num_correspondences );
+
+        epsilon_best = std::max( epsilon_best, inlier_ratio );
+
+        // update the max iteration
+        double prob_all_inliers = std::pow( epsilon_best, num_samples );
+        max_iters = CalculateMaxInters( prob_all_inliers,
+          pnp_params_.ransac_parameters_.failure_probability );
+      }
+
+    }
+  }
+
+  result.num_generated_random_samples_ = t;
+
+  bool refine_pose = pnp_params_.refine_pose;
+  // refine pose use all inliers
+  while ( refine_pose )
+  {
+    epnp_solver.reset_correspondences();
+    for ( int i = 0; i < num_correspondences; ++i ){
+      if ( vec_inliers[i] ){
+        epnp_solver.add_correspondence(
+          points3D[i][0],
+          points3D[i][1],
+          points3D[i][2],
+          points2D[i][0],
+          points2D[i][1] );
+      }
+    }
+    epnp_solver.compute_pose( R_est, T_est );
+
+    for ( int i = 0; i < 3; i++ ){
+      for ( int j = 0; j < 3; j++ ){
+        rotation_matrices( i, j ) = R_est[i][j];
+      }
+      translation[i] = T_est[i];
+    }
+
+    temp_pose.InitializePose( rotation_matrices, translation, K );
+    int num_inliers = EvaluatePose( points2D, points3D, temp_pose, vec_inliers );
+
+    // Update best model
+    if ( num_inliers > result.num_inliers_ ){
+      result.pose_.InitializePose( temp_pose );
+      result.num_inliers_ = num_inliers;
+    }
+    else break;
+  }*/
 }
 
 
