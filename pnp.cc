@@ -187,7 +187,6 @@ void PnP::ComputePoseEpnp(
   if ( pnp_params_.ransac_parameters_.use_T_1_1_test ){ 
     num_samples += 1;
   }
-  
 
   // inlier mask
   std::vector<bool> vec_inliers(num_correspondences, false);
@@ -234,7 +233,7 @@ void PnP::ComputePoseEpnp(
       PassesT11Test( points2D[rand_num], points3D[rand_num], temp_pose ) )
     {
       // Evaluates the poses.
-      int num_inliers = EvaluatePose( points2D, points3D, temp_pose, vec_inliers);
+      const int num_inliers = EvaluatePose( points2D, points3D, temp_pose, vec_inliers);
 
       // Update best model
       if ( num_inliers > result.num_inliers_ ){
@@ -247,14 +246,14 @@ void PnP::ComputePoseEpnp(
           static_cast<double>( num_correspondences );
 
         epsilon_best = std::max( epsilon_best, inlier_ratio );
+
+        // update the max iteration
+        double prob_all_inliers = std::pow( epsilon_best, num_samples );
+        max_iters = CalculateMaxInters( prob_all_inliers,
+          pnp_params_.ransac_parameters_.failure_probability );
       }
+
     }
-
-    // update the max iteration
-    double prob_all_inliers = std::pow( epsilon_best, num_samples );
-    max_iters = CalculateMaxInters( prob_all_inliers,
-      pnp_params_.ransac_parameters_.failure_probability );
-
   }
 
   result.num_generated_random_samples_ = t;
