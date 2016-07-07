@@ -1,6 +1,9 @@
 
 #include "p6p/p6p.h"
 
+#include <iostream>
+
+
 using Eigen::MatrixXd;
 using Eigen::MatrixBase;
 
@@ -17,9 +20,9 @@ static void Project( const ProjMatrix& proMat, const Vector3d& X, Vector2d& P )
   P[0] = P_[0]; P[1] = P_[1];
 }
 
-P6PSolver::P6PSolver():m_totalNumIterations(0)
+P6PSolver::P6PSolver()
 {
-
+  clear();
 }
 
 P6PSolver::~P6PSolver()
@@ -131,19 +134,6 @@ bool P6PSolver::scaleCorrespondences( void )
   m_matScaleWorld( 3, 3 ) = 1.0;
 
   return true;
-}
-
-
-
-//void P6PSolver::setInitialMatrix( const Matrix & _mat )
-//{
-//  m_initialMatrix.copyFrom( _mat );
-//}
-
-
-void P6PSolver::setInitialMatrix( const ProjMatrix & _mat )
-{
-  m_initialMatrix = _mat;
 }
 
 
@@ -317,7 +307,7 @@ bool P6PSolver::computeLinearNew( void )
 
   // simply using the eigenvector belonging
   // to the smallest eigenvalue.
-  Eigen::JacobiSVD<MatrixXd> SVD( mat_A, Eigen::ComputeThinV );
+  Eigen::JacobiSVD<MatrixXd> SVD( mat_A, Eigen::ComputeFullV );
   mat_V = SVD.matrixV();
 
   // last column of V is solution 
@@ -359,28 +349,99 @@ bool P6PSolver::getPositionAndOrientation( Vector3d &position, Vector3d &orienta
   // get the position of the camera as the vector spanning the right null-space of 
   // the projection matrix, see Hartley & Zisserman, 2nd edition, pages 158-159
   Matrix4d mat_V;
-  const ProjMatrix mat_P = m_projectionMatrix;
+  const ProjMatrix& mat_P = m_projectionMatrix;
 
   Eigen::JacobiSVD<MatrixXd> SVD( mat_P, Eigen::ComputeFullV );
   mat_V = SVD.matrixV();
 
-
+  // last col of V is camera position
   for ( int i = 0; i < 3; ++i )
     position[i] = mat_V( i, 3 ) / mat_V( 3, 3 );
 
   // get the viewing direction of the camera, see Hartley & Zisserman, 2nd ed., pages 160 - 161
   // compute the determinant of the 3x3 part of the projection matrix
-  double det = m_projectionMatrix( 0, 0 ) * m_projectionMatrix( 1, 1 ) * m_projectionMatrix( 2, 2 ) + m_projectionMatrix( 0, 1 ) * m_projectionMatrix( 1, 2 ) * m_projectionMatrix( 2, 0 ) + m_projectionMatrix( 0, 2 ) * m_projectionMatrix( 1, 0 ) * m_projectionMatrix( 2, 1 ) - m_projectionMatrix( 0, 2 ) * m_projectionMatrix( 1, 1 ) * m_projectionMatrix( 2, 0 ) - m_projectionMatrix( 0, 1 ) * m_projectionMatrix( 1, 0 ) * m_projectionMatrix( 2, 2 ) - m_projectionMatrix( 0, 0 ) * m_projectionMatrix( 1, 2 ) * m_projectionMatrix( 2, 1 );
+  double det = mat_P( 0, 0 ) * mat_P( 1, 1 ) * mat_P( 2, 2 ) 
+    + mat_P( 0, 1 ) * mat_P( 1, 2 ) * mat_P( 2, 0 ) 
+    + mat_P( 0, 2 ) * mat_P( 1, 0 ) * mat_P( 2, 1 ) 
+    - mat_P( 0, 2 ) * mat_P( 1, 1 ) * mat_P( 2, 0 )
+    - mat_P( 0, 1 ) * mat_P( 1, 0 ) * mat_P( 2, 2 )
+    - mat_P( 0, 0 ) * mat_P( 1, 2 ) * mat_P( 2, 1 );
 
   // remember that the camera in reconstructions computed by Bundler looks 
   // down the negative z-axis instead of the positive z-axis.
   // So we have to multiply the orientation with -1.0
   for ( int i = 0; i < 3; ++i )
-    orientation[i] = -m_projectionMatrix( 2, i ) * det;
+    orientation[i] = -mat_P( 2, i ) * det;
 
   return true;
 }
 
 
+// the camera coordinate' X and Y axis is same with image
+// camera viewing direction is positive Z
+bool P6PSolver::decomposeProjMatrix( const ProjMatrix& projMat,
+    Matrix3d& K, Matrix3d& R, Vector3d& c ) const
+{
+  K.setZero();
+
+  Matrix4d mat_V;
+  Eigen::JacobiSVD<MatrixXd> SVD( projMat, Eigen::ComputeFullV );
+  mat_V = SVD.matrixV();
+
+  for ( int i = 0; i < 3; ++i )
+    c[i] = mat_V( i, 3 ) / mat_V( 3, 3 );
+
+  Matrix3d KR = projMat.block<3, 3>( 0, 0 );
+
+  if ( KR.determinant() == 0.0 ){
+    std::cerr << " Error, M is singular!" << std::endl;
+    return false;
+  }
+
+  KR = flipud( KR ).transpose();
+  Eigen::HouseholderQR<Matrix3d> QR;
+  QR.compute( KR );
+
+  K = QR.matrixQR().triangularView<Eigen::Upper>();
+  K.transposeInPlace();
+  fliplr( flipud( K ) );
+
+  R = QR.householderQ();
+  R.transposeInPlace();
+  flipud( R );
+
+  Eigen::Matrix3d T;
+  T.setIdentity();
+  if ( K( 0, 0 ) < 0.0 ){ T( 0, 0 ) = -1.0; }
+  if ( K( 1, 1 ) < 0.0 ){ T( 1, 1 ) = -1.0; }
+  if ( K( 2, 2 ) < 0.0 ){ T( 2, 2 ) = -1.0; }
+
+  K = T*K;
+  R *= T;
+
+  if ( R.determinant() < 0.0 ){
+    R = -R;
+  }
+
+  K /= ( K( 2, 2 ) );
+
+  return true;
 }
+
+
+inline Matrix3d& flipud( Matrix3d & mat ){
+  std::swap( mat( 0, 0 ), mat( 2, 0 ) );
+  std::swap( mat( 0, 1 ), mat( 2, 1 ) );
+  std::swap( mat( 0, 2 ), mat( 2, 2 ) );
+  return mat;
+}
+
+inline Matrix3d& fliplr( Matrix3d & mat ){
+  std::swap( mat( 0, 0 ), mat( 0, 2 ) );
+  std::swap( mat( 1, 0 ), mat( 1, 2 ) );
+  std::swap( mat( 2, 0 ), mat( 2, 2 ) );
+  return mat;
+}
+
+}// namespace p6p
 

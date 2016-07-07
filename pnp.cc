@@ -9,7 +9,7 @@
 
 #include "p3pf/src/p3p_solver.h"
 #include "epnp/epnp.h"
-
+#include "p6p/p6p.h"
 
 namespace pnp{
 
@@ -299,9 +299,9 @@ void PnP::ComputePoseP6P(
   const std::vector<Vector2d> &points2D, 
   const std::vector<Vector3d> &points3D, 
   PnPResult &result)const
-{/*
-  int  num_correspondences = static_cast<int>( points2D.size() );
-  if ( num_correspondences <= 0 ) return;
+{
+  const size_t  num_correspondences = points2D.size();
+  if ( num_correspondences < 6 ) return;
 
   std::mt19937 rand_num_gen;
   if ( pnp_params_.ransac_parameters_.random_seed >= 0 ) {
@@ -311,15 +311,10 @@ void PnP::ComputePoseP6P(
   std::uniform_int_distribution<int> uniform_distribution_matches(
     0, num_correspondences - 1 );
 
-  p6p p6p_solver;
-
-  //const double uc, const double vc, const double fu, const double fv
-  epnp_solver.set_internal_parameters( K( 0, 2 ), K( 1, 2 ), K( 0, 0 ), K( 1, 1 ) );
-  epnp_solver.set_maximum_number_of_correspondences( num_correspondences );
+  p6p::P6PSolver p6p_solver;
 
   result.num_inliers_ = 0;
   double epsilon_best = pnp_params_.ransac_parameters_.min_inlier_ratio;
-  double R_est[3][3], T_est[3];
 
   int num_samples = pnp_params_.ransac_parameters_.minimal_sample_number;
   if ( pnp_params_.ransac_parameters_.use_T_1_1_test ){
@@ -333,34 +328,28 @@ void PnP::ComputePoseP6P(
   std::vector<Vector3d> sample_points_3D( 5 );
   Eigen::Matrix3d rotation_matrices;
   Eigen::Vector3d translation;
+  ProjMatrix temp_projMat;
   CameraPose temp_pose;
   uint64_t t = 0;
 
   for ( t = 0; t < max_iters; ++t )
   {
-    epnp_solver.reset_correspondences();
-    // Randomly select five 2D-3D matches.
+    p6p_solver.clear();
+    // Randomly select six 2D-3D matches.
     int rand_num = 0;
     for ( int i = 0; i < 5; ++i ) {
       rand_num = uniform_distribution_matches( rand_num_gen );
       sample_points_2D[i] = points2D[rand_num];
       sample_points_3D[i] = points3D[rand_num];
-      epnp_solver.add_correspondence(
-        points3D[rand_num][0],
-        points3D[rand_num][1],
-        points3D[rand_num][2],
-        points2D[rand_num][0],
-        points2D[rand_num][1] );
+      p6p_solver.addCorrespondence( points2D[rand_num],
+        points3D[rand_num]);
     }
 
-    epnp_solver.compute_pose( R_est, T_est );
+    // if fail then continue
+    if ( !p6p_solver.computeLinearNew() ) continue;
+    
+    p6p_solver.getProjectionMatrix( temp_projMat );
 
-    for ( int i = 0; i < 3; i++ ){
-      for ( int j = 0; j < 3; j++ ){
-        rotation_matrices( i, j ) = R_est[i][j];
-      }
-      translation[i] = T_est[i];
-    }
 
     temp_pose.InitializePose( rotation_matrices, translation, K );
 

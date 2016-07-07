@@ -15,6 +15,9 @@ using ProjMatrix = Eigen::Matrix<double, 3, 4>;
 
 namespace p6p{
 
+  //! Alias for a vector of correspondences
+using CorrespondenceVec = std::vector< Correspondence >;
+
 //! Correspondence struct for 2-image correspondences
 struct Correspondence 
 {
@@ -22,9 +25,6 @@ struct Correspondence
   Correspondence( const Vector2d & _p2d, const Vector3d & _p3d )
     : m_point2D( _p2d ), m_point3D( _p3d )
   {}
-
-  inline const Vector2d sortPoint( void ) const
-  { return m_point2D; }
 
   //! Feature in first image
   Vector2d m_point2D;
@@ -44,8 +44,6 @@ public:
   //! Destructor
   ~P6PSolver();
 
-  //! Type for a vector of correspondences
-  typedef std::vector< Correspondence > CorrespondenceVec;
   //! Clear all point correspondences
   void clear( void );
 
@@ -56,16 +54,11 @@ public:
   //! Add a correspondence
   void addCorrespondence( const Correspondence & _corres );
 
-
   //! Compute projection matrix using SVD
   bool computeLinear( void );
 
   //! Compute projection matrix with extended linear matrix
   bool computeLinearNew( void );
-
-  //! Get computed projection matrix
-  //void getProjectionMatrix( Matrix3d & _mat )
-  //{ m_projectionMatrix.copyTo( _mat ); }
 
   //! Get computed projection matrix
   void getProjectionMatrix( ProjMatrix & _mat )
@@ -75,24 +68,15 @@ public:
   void setProjectionMatrix( ProjMatrix & _mat )
   { m_projectionMatrix = _mat; }
 
-
-  //! Set initial projection matrix for iterative solver
-  //void setInitialMatrix( const Matrix3d & _mat );
-
-  //! Set initial projection matrix for iterative solver
-  void setInitialMatrix( const ProjMatrix & _mat );
-
-
   //! Evaluate a point correspondence (compute squared reprojection error)
-  virtual double evaluateCorrespondence( const Vector2d & _point2D,
+  double evaluateCorrespondence( const Vector2d & _point2D,
     const Vector3d & _point3D );
 
   //! get the position and orientation of the camera as two 3D vectors
   bool getPositionAndOrientation( Vector3d &position, Vector3d &orientation );
 
-
-  //! For testing only
-  int m_totalNumIterations;
+  bool decomposeProjMatrix( const ProjMatrix& projMat,
+    Matrix3d& K, Matrix3d& R, Vector3d& c ) const;
 
 protected:
 
@@ -111,9 +95,6 @@ protected:
 
   //! Computed projection matrix
   ProjMatrix m_projectionMatrix;
-
-  //! Initial projection matrix
-  ProjMatrix m_initialMatrix;
 
   //! Scaling matrix for image space
   Matrix3d m_matScaleImgInv;
