@@ -1,37 +1,35 @@
 # PnP_Solvers
-various PnP slover implementations, include p3p, p3pf, epnp, dlt
+Various PnP slover implementations, include p3p, p3pf, epnp, dlt
 
-the pnp_solvers is based on the p3pf originally provided by Torsten Sattler
-(http://people.inf.ethz.ch/sattlert/). I add another two pnp algorithms, epnp 
-and dlt.
+the pnp_solvers is based on the p3pf originally provided by [Torsten Sattler](http://people.inf.ethz.ch/sattlert/). 
+I add another two pnp algorithms, epnp and dlt.
 
-Dependency:
+## Dependency:
 OpenCV(epnp), Eigen, and Google gflags and glogs(For this part you can refer
 to the README.txt in ./p3pf).
 
-Notes:
+## Notes:
 
 CMakeLists.txt is provided and you can complie the program with CMake.
 You need modify the CMakeLists.txt to find OpenCV library, also the Eigen include path. 
-pnp_example.cc file are provided to demonstrate how to use the PnP_Solvers. 
+Serval pnp_example.cc files are provided to demonstrate how to use the PnP_Solvers. 
 
 
 
-Reference Papers and Books: 
+## Reference Papers and Books: 
 
-Torsten Sattler, Chris Sweeney, Marc Pollefeys.
-On Sampling Focal Length Values to Solve the Absolute Pose Problem.
+Torsten Sattler, Chris Sweeney, Marc Pollefeys.<br> 
+On Sampling Focal Length Values to Solve the Absolute Pose Problem.<br> 
 ECCV 2014.
 
-Laurent Kneip, Davide Scaramuzza, Roland Siegwart 
+Laurent Kneip, Davide Scaramuzza, Roland Siegwart <br> 
 A Novel Parametrization of the Perspective-Three-Point Problem for 
-a Direct Computation of Absolute Camera Position and Orientation.
-CVPR 2011.
+a Direct Computation of Absolute Camera Position and Orientation.<br> 
+CVPR 2011.<br> 
 
-Lepetit Vincent, Francesc Morenonoguer, Pascal Fua
-EPnP: An Accurate O(n) Solution to the PnP Problem.
-IJCV 2009
+Lepetit Vincent, Francesc Morenonoguer, Pascal Fua<br> 
+EPnP: An Accurate O(n) Solution to the PnP Problem.<br> 
+IJCV 2009<br> 
 
-Hartley Richard, Andrew Zisserman
-Multiple View Geometry
-IJCV 2000
+Hartley Richard, Andrew Zisserman<br> 
+Multi View Geometry in Computer Vision.<br> 
