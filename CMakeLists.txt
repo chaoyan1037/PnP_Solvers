@@ -41,17 +41,17 @@ add_subdirectory (p3pf)
 add_subdirectory (epnp)
 
 # add pnp library
-add_library(pnp pnp.cc camera_pose.cc)
+add_library(pnp pnp.cc camera_pose.cc p6p/p6p.cpp)
 target_link_libraries(pnp epnp glog::glog p3pf external_pose_algs)
 
 # build example for epnp
-# add_executable(epnp_example epnp_example.cc)
-# target_link_libraries(epnp_example pnp)
+add_executable(epnp_example epnp_example.cc)
+target_link_libraries(epnp_example pnp)
 
 # build example for p3pf
-#add_executable(p3pf_example p3pf_example.cc)
-#target_link_libraries(p3pf_example pnp)
+add_executable(p3pf_example p3pf_example.cc)
+target_link_libraries(p3pf_example pnp)
 
 # build example for p6p
-add_executable(p6p_example p6p_example.cc ${CMAKE_SOURCE_DIR}/p6p/p6p.cpp)
+add_executable(p6p_example p6p_example.cc p6p/p6p.cpp)
 target_link_libraries(p6p_example pnp)

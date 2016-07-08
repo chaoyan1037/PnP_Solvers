@@ -109,8 +109,16 @@ struct PnPResult {
   PnPResult()
     : num_inliers_( 0 ),
     num_generated_random_samples_( 0 ) {
+    sample_points_2D_.clear();
+    sample_points_3D_.clear();
   }
 
+  void clear(){
+    num_inliers_ = 0;
+    num_generated_random_samples_ = 0;
+    sample_points_2D_.clear();
+    sample_points_3D_.clear();
+  }
   // The computed pose. The focal length that was used to estimate the pose can
   // be recovered from the intrinsic calibration of the camera pose.
   CameraPose pose_;

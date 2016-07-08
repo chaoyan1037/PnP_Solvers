@@ -6,10 +6,19 @@
 #include <algorithm>
 
 #include <Eigen/Dense>
+#ifndef GLOG_NO_ABBREVIATED_SEVERITIES
+#define GLOG_NO_ABBREVIATED_SEVERITIES
+#endif
+#if _WIN32
+#define NOMINMAX
+#include <windows.h>
+#endif
+#include <glog/logging.h>
 
 #include "p3pf/src/p3p_solver.h"
 #include "epnp/epnp.h"
 #include "p6p/p6p.h"
+
 
 namespace pnp{
 
@@ -162,8 +171,9 @@ void PnP::ComputePoseEpnp(
   const std::vector<Vector3d> &points3D,
   PnPResult &result ) const
 {
+  result.clear();
   int  num_correspondences = static_cast<int>(points2D.size());
-  if ( num_correspondences <= 0 ) return;
+  if ( num_correspondences < 6 ) return;
 
   std::mt19937 rand_num_gen;
   if ( pnp_params_.ransac_parameters_.random_seed >= 0 ) {
@@ -198,7 +208,7 @@ void PnP::ComputePoseEpnp(
   CameraPose temp_pose;
   uint64_t t = 0;
 
-  for (  t = 0; t < max_iters; ++t )
+  for (  t = 0; t <= max_iters; ++t )
   {
     epnp_solver.reset_correspondences();
     // Randomly select five 2D-3D matches.
@@ -251,8 +261,8 @@ void PnP::ComputePoseEpnp(
         double prob_all_inliers = std::pow( epsilon_best, num_samples );
         max_iters = CalculateMaxInters( prob_all_inliers,
           pnp_params_.ransac_parameters_.failure_probability );
+        LOG( INFO ) << "cnt: " << t << "  update max_iters: " << max_iters;
       }
-
     }
   }
 
@@ -300,7 +310,8 @@ void PnP::ComputePoseP6P(
   const std::vector<Vector3d> &points3D, 
   PnPResult &result)const
 {
-  const size_t  num_correspondences = points2D.size();
+  result.clear();
+  const int  num_correspondences = static_cast<int>(points2D.size());
   if ( num_correspondences < 6 ) return;
 
   std::mt19937 rand_num_gen;
@@ -310,8 +321,6 @@ void PnP::ComputePoseP6P(
 
   std::uniform_int_distribution<int> uniform_distribution_matches(
     0, num_correspondences - 1 );
-
-  p6p::P6PSolver p6p_solver;
 
   result.num_inliers_ = 0;
   double epsilon_best = pnp_params_.ransac_parameters_.min_inlier_ratio;
@@ -324,20 +333,20 @@ void PnP::ComputePoseP6P(
   // inlier mask
   std::vector<bool> vec_inliers( num_correspondences, false );
   uint64_t max_iters = pnp_params_.ransac_parameters_.max_ransac_iterations;
-  std::vector<Vector2d> sample_points_2D( 5 );
-  std::vector<Vector3d> sample_points_3D( 5 );
-  Eigen::Matrix3d rotation_matrices;
+  std::vector<Vector2d> sample_points_2D( 7 );
+  std::vector<Vector3d> sample_points_3D( 7 );
+  Eigen::Matrix3d rotation_matrices, K;
   Eigen::Vector3d translation;
-  ProjMatrix temp_projMat;
   CameraPose temp_pose;
   uint64_t t = 0;
+  p6p::P6PSolver p6p_solver;
 
   for ( t = 0; t < max_iters; ++t )
   {
     p6p_solver.clear();
     // Randomly select six 2D-3D matches.
     int rand_num = 0;
-    for ( int i = 0; i < 5; ++i ) {
+    for ( int i = 0; i < 7; ++i ) {
       rand_num = uniform_distribution_matches( rand_num_gen );
       sample_points_2D[i] = points2D[rand_num];
       sample_points_3D[i] = points3D[rand_num];
@@ -348,8 +357,12 @@ void PnP::ComputePoseP6P(
     // if fail then continue
     if ( !p6p_solver.computeLinearNew() ) continue;
     
-    p6p_solver.getProjectionMatrix( temp_projMat );
-
+    //p6p_solver.getProjectionMatrix( temp_projMat );
+    p6p_solver.getCameraPosition( translation );
+    p6p_solver.decomposeProjMatrixGivens( K, rotation_matrices );
+    p6p_solver.AdjustDecomposedKR( K, rotation_matrices );
+    // t = -R*C
+    translation = -rotation_matrices*translation;
 
     temp_pose.InitializePose( rotation_matrices, translation, K );
 
@@ -378,8 +391,8 @@ void PnP::ComputePoseP6P(
         double prob_all_inliers = std::pow( epsilon_best, num_samples );
         max_iters = CalculateMaxInters( prob_all_inliers,
           pnp_params_.ransac_parameters_.failure_probability );
+        LOG( INFO ) << "update max_iters: " << max_iters;
       }
-
     }
   }
 
@@ -389,25 +402,21 @@ void PnP::ComputePoseP6P(
   // refine pose use all inliers
   while ( refine_pose )
   {
-    epnp_solver.reset_correspondences();
+    p6p_solver.clear();
     for ( int i = 0; i < num_correspondences; ++i ){
       if ( vec_inliers[i] ){
-        epnp_solver.add_correspondence(
-          points3D[i][0],
-          points3D[i][1],
-          points3D[i][2],
-          points2D[i][0],
-          points2D[i][1] );
+        p6p_solver.addCorrespondence(points2D[i], points3D[i]);
       }
     }
-    epnp_solver.compute_pose( R_est, T_est );
 
-    for ( int i = 0; i < 3; i++ ){
-      for ( int j = 0; j < 3; j++ ){
-        rotation_matrices( i, j ) = R_est[i][j];
-      }
-      translation[i] = T_est[i];
-    }
+    if ( !p6p_solver.computeLinearNew() ) 
+      break;
+
+    p6p_solver.getCameraPosition( translation );
+    p6p_solver.decomposeProjMatrixGivens( K, rotation_matrices );
+    p6p_solver.AdjustDecomposedKR( K, rotation_matrices );
+    // t = -R*C
+    translation = -rotation_matrices*translation;
 
     temp_pose.InitializePose( rotation_matrices, translation, K );
     int num_inliers = EvaluatePose( points2D, points3D, temp_pose, vec_inliers );
@@ -418,7 +427,8 @@ void PnP::ComputePoseP6P(
       result.num_inliers_ = num_inliers;
     }
     else break;
-  }*/
+  }
+
 }
 
 

@@ -376,22 +376,24 @@ bool P6PSolver::getPositionAndOrientation( Vector3d &position, Vector3d &orienta
   return true;
 }
 
+inline Matrix3d& flipud( Matrix3d & mat ){
+  std::swap( mat( 0, 0 ), mat( 2, 0 ) );
+  std::swap( mat( 0, 1 ), mat( 2, 1 ) );
+  std::swap( mat( 0, 2 ), mat( 2, 2 ) );
+  return mat;
+}
 
+inline Matrix3d& fliplr( Matrix3d & mat ){
+  std::swap( mat( 0, 0 ), mat( 0, 2 ) );
+  std::swap( mat( 1, 0 ), mat( 1, 2 ) );
+  std::swap( mat( 2, 0 ), mat( 2, 2 ) );
+  return mat;
+}
 // the camera coordinate' X and Y axis is same with image
 // camera viewing direction is positive Z
-bool P6PSolver::decomposeProjMatrix( const ProjMatrix& projMat,
-    Matrix3d& K, Matrix3d& R, Vector3d& c ) const
+bool P6PSolver::decomposeProjMatrix(Matrix3d& K, Matrix3d& R) const
 {
-  K.setZero();
-
-  Matrix4d mat_V;
-  Eigen::JacobiSVD<MatrixXd> SVD( projMat, Eigen::ComputeFullV );
-  mat_V = SVD.matrixV();
-
-  for ( int i = 0; i < 3; ++i )
-    c[i] = mat_V( i, 3 ) / mat_V( 3, 3 );
-
-  Matrix3d KR = projMat.block<3, 3>( 0, 0 );
+  Matrix3d KR = m_projectionMatrix.block<3, 3>( 0, 0 );
 
   if ( KR.determinant() == 0.0 ){
     std::cerr << " Error, M is singular!" << std::endl;
@@ -410,37 +412,102 @@ bool P6PSolver::decomposeProjMatrix( const ProjMatrix& projMat,
   R.transposeInPlace();
   flipud( R );
 
+  return true;
+}
+
+//! get the camera position in the WCF.
+void P6PSolver::getCameraPosition( Vector3d & position ) const
+{
+  Matrix4d mat_V;
+  Eigen::JacobiSVD<MatrixXd> SVD( m_projectionMatrix, Eigen::ComputeFullV );
+  mat_V = SVD.matrixV();
+
+  for ( int i = 0; i < 3; ++i )
+    position[i] = mat_V( i, 3 ) / mat_V( 3, 3 );
+}
+
+bool P6PSolver::decomposeProjMatrixGivens( Matrix3d& K, Matrix3d& R ) const
+{
+  K = m_projectionMatrix.block<3, 3>( 0, 0 );
+
+  if ( K.determinant() == 0.0 ){
+    std::cerr << " Error, M is singular!" << std::endl;
+    return false;
+  }
+  Eigen::Matrix3d matRot;
+  double s = 0.0, c = 0.0;
+
+  ////////////////////////////////////
+  // Cancellation of element 3,2
+  c = std::sqrt( K( 2, 1 )*K( 2, 1 ) + K( 2, 2 )*K( 2, 2 ) );
+  s = -K( 2, 1 ) / c;
+  c = K( 2, 2 ) / c;
+
+  matRot.setZero();
+  matRot( 0, 0 ) = 1.0;
+  matRot( 1, 1 ) = matRot( 2, 2 ) = c;
+  matRot( 2, 1 ) = s;
+  matRot( 1, 2 ) = -s;
+
+  K *= matRot;
+  R = matRot.transpose();
+
+  ////////////////////////////////////
+  // Cancellation of element 3,1
+  c = std::sqrt( K( 2, 0 )*K( 2, 0 ) + K( 2, 2 )*K( 2, 2 ) );
+  s = K( 2, 0 ) / c;
+  c = K( 2, 2 ) / c;
+
+  matRot.setZero();
+  matRot( 1, 1 ) = 1.0;
+  matRot( 0, 0 ) = matRot( 2, 2 ) = c;
+  matRot( 0, 2 ) = s;
+  matRot( 2, 0 ) = -s;
+
+  K *= matRot;
+  matRot.transposeInPlace();
+  R = matRot*R;
+
+  /////////////////////////////////////
+  // Cancellation of element 2,1
+  c = std::sqrt( K( 1, 0 )*K( 1, 0 ) + K( 1, 1 )*K( 1, 1 ) );
+  s = K( 1, 0 ) / c;
+  c = -K( 1, 1 ) / c;
+
+  matRot.setZero();
+  matRot( 2, 2 ) = 1.0;
+  matRot( 0, 0 ) = matRot( 1, 1 ) = c;
+  matRot( 1, 0 ) = s;
+  matRot( 0, 1 ) = -s;
+
+  K *= matRot;
+  matRot.transposeInPlace();
+  R = matRot*R;
+  
+  return true;
+}
+
+bool P6PSolver::AdjustDecomposedKR( Matrix3d& K, Matrix3d&R )const
+{
   Eigen::Matrix3d T;
   T.setIdentity();
   if ( K( 0, 0 ) < 0.0 ){ T( 0, 0 ) = -1.0; }
   if ( K( 1, 1 ) < 0.0 ){ T( 1, 1 ) = -1.0; }
   if ( K( 2, 2 ) < 0.0 ){ T( 2, 2 ) = -1.0; }
-
-  K = T*K;
-  R *= T;
-
+  // make the diagonal of K positive
+  K *= T;
+  R = T*R;
+  // make the determinant of R positive
   if ( R.determinant() < 0.0 ){
     R = -R;
   }
 
-  K /= ( K( 2, 2 ) );
-
-  return true;
-}
-
-
-inline Matrix3d& flipud( Matrix3d & mat ){
-  std::swap( mat( 0, 0 ), mat( 2, 0 ) );
-  std::swap( mat( 0, 1 ), mat( 2, 1 ) );
-  std::swap( mat( 0, 2 ), mat( 2, 2 ) );
-  return mat;
-}
-
-inline Matrix3d& fliplr( Matrix3d & mat ){
-  std::swap( mat( 0, 0 ), mat( 0, 2 ) );
-  std::swap( mat( 1, 0 ), mat( 1, 2 ) );
-  std::swap( mat( 2, 0 ), mat( 2, 2 ) );
-  return mat;
+  double scale = 1.0 / K( 2, 2 );
+  if ( !std::isinf( scale ) && !std::isnan( scale ) ){
+    K *= scale;
+    return true;
+  }
+  else return false;
 }
 
 }// namespace p6p

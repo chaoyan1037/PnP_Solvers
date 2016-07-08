@@ -46,6 +46,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <ctime>
 #include <random>
 
 #include "pnp.h"
@@ -161,7 +162,7 @@ int main(int argc, char *argv[])
   epnp_params.ransac_parameters_.failure_probability = 0.01;
   epnp_params.ransac_parameters_.min_inlier_ratio = 0.1;
   epnp_params.ransac_parameters_.squared_inlier_threshold = 10.0;
-  epnp_params.ransac_parameters_.random_seed = 0;
+  epnp_params.ransac_parameters_.random_seed = static_cast<int>(std::time(0));
   epnp_params.ransac_parameters_.use_T_1_1_test = true;
 
 
@@ -212,4 +213,6 @@ int main(int argc, char *argv[])
   LOG(INFO) << "P3P(f) took " << result.num_generated_random_samples_
             << " iterations to compute the pose";
   LOG(INFO) << "Running P3P(f) took " << run_time.count() << " seconds ";
+
+  return 1;
 }

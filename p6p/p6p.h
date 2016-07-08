@@ -15,9 +15,6 @@ using ProjMatrix = Eigen::Matrix<double, 3, 4>;
 
 namespace p6p{
 
-  //! Alias for a vector of correspondences
-using CorrespondenceVec = std::vector< Correspondence >;
-
 //! Correspondence struct for 2-image correspondences
 struct Correspondence 
 {
@@ -33,6 +30,8 @@ struct Correspondence
   Vector3d m_point3D;
 };
 
+//! Alias for a vector of correspondences
+using CorrespondenceVec = std::vector< Correspondence >;
 
 class P6PSolver{
 
@@ -75,8 +74,19 @@ public:
   //! get the position and orientation of the camera as two 3D vectors
   bool getPositionAndOrientation( Vector3d &position, Vector3d &orientation );
 
-  bool decomposeProjMatrix( const ProjMatrix& projMat,
-    Matrix3d& K, Matrix3d& R, Vector3d& c ) const;
+  //! get the camera position in the WCF.
+  void getCameraPosition( Vector3d & position ) const;
+
+  //! decompose the left 3X3 part(K*R) of projection matrix
+  //! based on QR decomposition
+  bool decomposeProjMatrix( Matrix3d& K, Matrix3d& R) const;
+
+  //! based on Givens rotation matrix
+  bool decomposeProjMatrixGivens( Matrix3d& K, Matrix3d& R) const;
+  
+  //! Adjust the K,R so that K's diagonal element is positive
+  //! and det(R) is positive 
+  bool AdjustDecomposedKR( Matrix3d& K, Matrix3d&R )const;
 
 protected:
 
