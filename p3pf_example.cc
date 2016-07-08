@@ -253,8 +253,8 @@ int main(int argc, char *argv[])
   c = -R.transpose() * t;
   LOG(INFO) << "Expected camera center: [3, 6, 12], computed camera center: "
             << c.transpose();
-  LOG(INFO) << "Camera center error: " << (Eigen::Vector3d(3.0, 6.0, 12.0) -
-                                             c).norm();
+  LOG(INFO) << "Camera center error: " 
+    << (Eigen::Vector3d(3.0, 6.0, 12.0) -c).norm();
   LOG(INFO) << "P3P(f) took " << result.num_generated_random_samples_
             << " iterations to compute the pose";
   LOG(INFO) << "Running P3P(f) took " << run_time.count() << " seconds ";

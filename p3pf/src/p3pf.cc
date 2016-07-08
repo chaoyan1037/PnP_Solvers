@@ -154,7 +154,9 @@ void P3Pf::Init(const P3PfParameters &parameters) {
 void P3Pf::ComputePose(
     const std::vector<Vector2d> &points2D,
     const std::vector<Vector3d> &points3D,
-    PnPResult *result) const {
+    PnPResult *result) const 
+{
+  result->clear();
   int num_correspondences = static_cast<int>(points2D.size());
 
   if (num_correspondences <= 0) return;
@@ -175,6 +177,7 @@ void P3Pf::ComputePose(
   std::vector<uint64_t> num_samples_per_focal_length(num_focal_values, 0);
   // The pose solver to use.
   P3PSolver p3p_solver;
+  const double squared_thres = params_.ransac_parameters_.squared_inlier_threshold;
 
   // Initializes the probabilities according to the prior distribution.
   std::vector<double> probabilities;
@@ -199,7 +202,8 @@ void P3Pf::ComputePose(
     LOG( INFO ) << " open run-time record file fail: " << std::endl;
     return;
   }*/
-  while (true) {
+  while (true) 
+  {
     ++t;
 
     // Randomly select a focal length value.
@@ -226,7 +230,7 @@ void P3Pf::ComputePose(
     // the T11 test is disabled.
     const int rand_num = uniform_distribution_matches(rand_num_gen);
     if (!params_.ransac_parameters_.use_T_1_1_test ||
-        PassesT11Test(points3D[rand_num], points2D[rand_num], &p3p_solver)) 
+      p3p_solver.PassesT11Test( points3D[rand_num], points2D[rand_num], squared_thres ) )
     {
       // Evaluates the poses.
       for (int i = 0; i < num_correspondences; ++i) {
@@ -281,6 +285,7 @@ void P3Pf::ComputePose(
   result->num_generated_random_samples_ = t;
 }
 
+/*
 bool P3Pf::PassesT11Test(const Vector3d& point3D,
                          const Vector2d& point2D,
                          P3PSolver* p3p_solver) const 
@@ -300,7 +305,7 @@ bool P3Pf::PassesT11Test(const Vector3d& point3D,
 
   p3p_solver->SetPose(temp_pose);
   return true;
-}
+}*/
 
 double P3Pf::UpdateSamplingProbabilities(
       const std::vector<uint64_t>& num_samples_per_value,

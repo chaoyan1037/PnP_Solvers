@@ -83,6 +83,11 @@ private:
     const Vector2d& point2D,
     const Vector3d& point3D,
     const CameraPose& pose) const;
+  
+  bool PassesT11Test(
+    const Vector2d& point2D,
+    const Vector3d& point3D,
+    const std::vector<CameraPose>& vecPose ) const;
 
   double ComputeSquaredReprojectionError(
     const Vector2d &p_i,
@@ -102,6 +107,11 @@ public:
 
   // set the pnp method used to solve the pnp problem
   void Init( const GpnpParameters& Parameters );
+
+  void ComputePoseP3P(    
+    const std::vector<Vector2d> &points2D,
+    const std::vector<Vector3d> &points3D,
+    PnPResult &result) const;
 
   void ComputePoseEpnp(
     const std::vector<Vector2d> &points2D,

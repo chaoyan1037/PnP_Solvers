@@ -129,6 +129,22 @@ void P3PSolver::EvaluateCorrespondence(
   }
 }
 
+// Do T11 Test
+bool P3PSolver::PassesT11Test( 
+  const Vector3d& point3D,
+  const Vector2d& point2D,
+  const double squared_inlier_threshold ) const
+{
+  for ( int i = 0; i < num_poses_; ++i ) {
+    const double squared_reproj_err =
+      ComputeSquaredReprojectionError( camera_poses_[i], point3D, point2D );
+    if ( squared_reproj_err < squared_inlier_threshold ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int P3PSolver::GetBestCameraPose(CameraPose *pose) const {
   if (camera_poses_.empty()) return -1;
   int max_index = 0;

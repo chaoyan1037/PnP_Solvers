@@ -88,9 +88,11 @@ class P3Pf {
   // Evaluates a single point per the T{1,1} test and returns true if that point
   // is an inlier and false otherwise. This is used to speed up the evaluation
   // of correspondences.
-  bool PassesT11Test(const Vector3d &points3d,
+  /*
+    bool PassesT11Test(const Vector3d &points3d,
                      const Vector2d &points2d,
                      P3PSolver *solver) const;
+  */
 
   // Updates the sampling probabilities by calling the independent and dependent
   // methods below as necessary.

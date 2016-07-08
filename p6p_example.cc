@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <algorithm>
+#include <ctime>
 
 #ifndef GLOG_NO_ABBREVIATED_SEVERITIES
 #define GLOG_NO_ABBREVIATED_SEVERITIES
@@ -140,16 +141,17 @@ int main( int argc, char *argv[] )
   google::InitGoogleLogging( argv[0] );
 
   // Initializes the parameters of the pnp algorithm.
-  pnp::PnPParameters pnp_params;
-  pnp_params.InitPnPMethod( PnPMethod::P6P );
+  pnp::PnPParameters PnPParams;
+  PnPParams.InitPnPMethod( PnPMethod::P3P );
+  //PnPParams.InitPnPMethod( PnPMethod::P6P );
 
-  auto & p6p_params = *( pnp_params.ptr_pnp_params );
+  auto & pnp_params = *( PnPParams.ptr_pnp_params );
 
-  p6p_params.ransac_parameters_.failure_probability = 0.01;
-  p6p_params.ransac_parameters_.min_inlier_ratio = 0.1;
-  p6p_params.ransac_parameters_.squared_inlier_threshold = 10.0;
-  p6p_params.ransac_parameters_.random_seed = 0;
-  p6p_params.ransac_parameters_.use_T_1_1_test = true;
+  pnp_params.ransac_parameters_.failure_probability = 0.01;
+  pnp_params.ransac_parameters_.min_inlier_ratio = 0.1;
+  pnp_params.ransac_parameters_.squared_inlier_threshold = 10.0;
+  pnp_params.ransac_parameters_.random_seed = 0; // static_cast<int>( std::time( 0 ) );
+  pnp_params.ransac_parameters_.use_T_1_1_test = true;
 
   // Creates a random problem instance with an inlier ratio of 0.3 for an
   // image of dimensions 640x480 and a focal length corresponding to an
@@ -157,13 +159,19 @@ int main( int argc, char *argv[] )
   double focal_length = 320.0 / tan( 55.5 / 2.0 * M_PI / 180.0 );
   std::vector<Eigen::Vector2d> points2D;
   std::vector<Eigen::Vector3d> points3D;
-  GeneratePointsCorrInstance( 30, 70, 640, 320, focal_length, 0, points2D, points3D );
+  GeneratePointsCorrInstance( 30, 70, 640, 320, focal_length, pnp_params.ransac_parameters_.random_seed, points2D, points3D );
 
-  pnp_params.ptr_pnp_params->refine_pose = true;
+  // P3P need focal length
+  Eigen::Matrix3d K;
+  K.setIdentity();
+  K( 0, 0 ) = K( 1, 1 ) = focal_length;
+  PnPParams.ptr_pnp_params->K_ = K;
+
+  PnPParams.ptr_pnp_params->refine_pose = true;
 
   pnp::PnPSolver pnp;
-  pnp.Init( pnp_params );
-  LOG( INFO ) << "Running p6p ";
+  pnp.Init( PnPParams );
+  LOG( INFO ) << "Running p3p/p6p ";
   pnp::PnPResult result;
   std::chrono::high_resolution_clock::time_point t1 =
     std::chrono::high_resolution_clock::now();
@@ -188,8 +196,8 @@ int main( int argc, char *argv[] )
     << c.transpose();
   LOG( INFO ) << "Camera center error: " << ( Eigen::Vector3d( 3.0, 6.0, 12.0 ) -
     c ).norm();
-  LOG( INFO ) << "P3P(f) took " << result.num_generated_random_samples_
+  LOG( INFO ) << "P3P/P6P took " << result.num_generated_random_samples_
     << " iterations to compute the pose";
-  LOG( INFO ) << "Running P3P(f) took " << run_time.count() << " seconds ";
+  LOG( INFO ) << "Running P3P/P6P took " << run_time.count() << " seconds ";
   return 1;
 }

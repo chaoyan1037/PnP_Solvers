@@ -52,7 +52,8 @@ CameraPose::~CameraPose() {
 
 void CameraPose::InitializePose(const Matrix3d &R,
                                 const Vector3d &t,
-                                const Matrix3d &K) {
+                                const Matrix3d &K) 
+{
   R_ = R;
   t_ = t;
   K_ = K;

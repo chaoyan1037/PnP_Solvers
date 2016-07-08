@@ -96,6 +96,11 @@ class P3PSolver {
                               const Vector2d &p_i,
                               const double squared_inlier_threshold);
 
+  // Do T11 Test
+  bool PassesT11Test( const Vector3d& point3D, 
+                      const Vector2d& point2D,
+                      const double squared_inlier_threshold) const;
+
   // Determines and returns the camera pose with the largest number of inliers
   // and this number of inliers. Returns -1 if no camera has been computed.
   int GetBestCameraPose(CameraPose *pose) const;
