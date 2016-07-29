@@ -2,7 +2,7 @@
 Various PnP slover implementations, include p3p, p3pf, epnp, dlt
 
 the pnp_solvers is based on the p3pf originally provided by [Torsten Sattler](http://people.inf.ethz.ch/sattlert/). 
-I add another two pnp algorithms, epnp and dlt.
+I add another two pnp algorithms, epnp and dlt. And they work in the same framework, so you can easily change the method you want to use.
 
 ## Dependency:
 OpenCV(epnp), Eigen, and Google gflags and glogs(For this part you can refer
